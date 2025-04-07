@@ -105,12 +105,13 @@ export default function Home() {
       }
 
       // Update local state directly instead of fetching again
-      const newItem = {
-        id: result.data?.id || Date.now().toString(),
+      const newItem: KnowledgeBase = {
+        id: result.data?.id || Number(Date.now()),
         category: data.category,
         headline: data.headline,
         summary: data.summary,
         original_url: url,
+        created_at: new Date().toISOString()
       }
       
       setKnowledgeBase(prev => [...prev, newItem])
