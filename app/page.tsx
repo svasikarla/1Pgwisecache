@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import UrlCard from "@/components/url-card"
-import { getCategoryColor, getCategoryBgClass } from "@/lib/category-utils"
-import { getKnowledgeBase, addToKnowledgeBase } from "@/lib/actions"
+import { getCategoryColor, getCategoryBgClass, getCategoryIcon } from "@/lib/category-utils"
+import { getKnowledgeBase, addToKnowledgeBase, deleteFromKnowledgeBase } from "@/lib/actions"
 import type { KnowledgeBase } from "@/lib/supabase"
 import { toast } from "sonner"
+import { CategoryPopup } from "@/components/category-popup"
+import { motion, AnimatePresence } from "framer-motion"
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -21,6 +23,8 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null)
   const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBase[]>([])
   const [categories, setCategories] = useState<string[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Fetch data from Supabase
   useEffect(() => {
@@ -66,7 +70,7 @@ export default function Home() {
 
   const handleAddUrl = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!url) return
+    if (!url || isSubmitting) return
 
     // Check if URL already exists
     const existingUrl = knowledgeBase.some(item => item.original_url === url)
@@ -76,6 +80,7 @@ export default function Home() {
       return
     }
 
+    setIsSubmitting(true)
     setIsLoading(true)
     try {
       const response = await fetch('/api/analyze', {
@@ -128,6 +133,7 @@ export default function Home() {
       toast.error('Failed to add URL')
     } finally {
       setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
 
@@ -165,6 +171,33 @@ export default function Home() {
     }
   }
 
+  const handleDeleteUrl = async (id: number) => {
+    try {
+      const result = await deleteFromKnowledgeBase(id)
+      
+      if (!result.success) {
+        throw new Error('Failed to delete URL')
+      }
+
+      // Update local state
+      setKnowledgeBase(prev => prev.filter(item => item.id !== id))
+      
+      // Update categories if needed
+      const remainingCategories = new Set(knowledgeBase
+        .filter(item => item.id !== id)
+        .map(item => item.category))
+      
+      if (remainingCategories.size !== categories.length) {
+        setCategories(Array.from(remainingCategories))
+      }
+
+      toast.success('URL deleted successfully!')
+    } catch (error) {
+      console.error('Error deleting URL:', error)
+      toast.error('Failed to delete URL')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -183,11 +216,11 @@ export default function Home() {
                   placeholder="Enter a URL to summarize..."
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  disabled={isLoading}
+                  disabled={isLoading || isSubmitting}
                 />
                 <Button 
                   type="submit" 
-                  disabled={isLoading} 
+                  disabled={isLoading || isSubmitting} 
                   className="gap-1 transition-all duration-300"
                 >
                   <Plus className="h-4 w-4" />
@@ -217,65 +250,90 @@ export default function Home() {
           </div>
         </header>
 
-        <main>
-          {isLoadingData ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading data...</p>
-            </div>
-          ) : error ? (
-            <div className="text-center py-12">
-              <p className="text-red-500">Error: {error}</p>
-            </div>
-          ) : categories.length === 0 ? (
+        <main className="space-y-8">
+          {categories.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No categories found. Add a URL to get started!</p>
             </div>
           ) : (
-            <Tabs defaultValue={categories[0]} className="w-full">
-              <TabsList className="w-full justify-start mb-6 overflow-x-auto flex-wrap sm:flex-nowrap bg-transparent p-0 h-auto">
-                {categories.map((category) => (
-                  <TabsTrigger
-                    key={category}
-                    value={category}
-                    className={`rounded-md px-4 py-2 m-1 transition-all duration-300 data-[state=active]:shadow-md ${getCategoryColor(category)}`}
-                  >
-                    {category}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+              {/* Categories Sidebar */}
+              <div className="lg:col-span-1">
+                <div className="sticky top-4 space-y-2">
+                  {categories.map((category) => (
+                    <motion.div
+                      key={category}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Button
+                        variant="ghost"
+                        className={`w-full justify-start px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                          selectedCategory === category ? 'ring-2 ring-primary scale-105' : ''
+                        } ${getCategoryColor(category)}`}
+                        onClick={() => setSelectedCategory(category)}
+                      >
+                        <span className="mr-2 text-lg">{getCategoryIcon(category)}</span>
+                        <span className="truncate">{category}</span>
+                      </Button>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
 
-              {categories.map((category) => {
-                const filteredItems = getFilteredItems(category)
-
-                return (
-                  <TabsContent key={category} value={category} className="mt-0">
-                    <div className={`p-6 rounded-lg ${getCategoryBgClass(category)}`}>
-                      {filteredItems.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {filteredItems.map((item) => (
+              {/* Content Area */}
+              <div className="lg:col-span-3">
+                <AnimatePresence mode="wait">
+                  {selectedCategory ? (
+                    <motion.div
+                      key={selectedCategory}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.3 }}
+                      className={`p-6 rounded-lg ${getCategoryBgClass(selectedCategory)}`}
+                    >
+                      <h2 className="text-2xl font-semibold mb-6 dark:text-gray-100 flex items-center gap-2">
+                        <span className="text-2xl">{getCategoryIcon(selectedCategory)}</span>
+                        {selectedCategory}
+                        <span className="text-sm font-normal text-muted-foreground">
+                          ({getFilteredItems(selectedCategory).length} items)
+                        </span>
+                      </h2>
+                      <div className="space-y-4">
+                        {getFilteredItems(selectedCategory).map((item, index) => (
+                          <motion.div
+                            key={item.id}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                          >
                             <UrlCard
-                              key={item.id}
+                              id={item.id}
                               title={item.headline}
                               url={item.original_url}
                               category={item.category}
                               summary={item.summary}
+                              formattedDate={new Date(item.created_at).toLocaleDateString()}
+                              onDelete={handleDeleteUrl}
                             />
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-12">
-                          <p className="text-muted-foreground">
-                            {searchQuery
-                              ? `No results found for "${searchQuery}" in ${category}`
-                              : `No items in ${category}`}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-                )
-              })}
-            </Tabs>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="text-center py-12"
+                    >
+                      <p className="text-muted-foreground">Select a category to view its contents</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
           )}
         </main>
       </div>

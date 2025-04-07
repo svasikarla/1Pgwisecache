@@ -1,53 +1,53 @@
-import { supabase } from './supabase'
-import { KnowledgeBase } from './supabase'
+import { createClient } from './supabase/server'
+import type { KnowledgeBase } from './supabase'
 
-export async function addToKnowledgeBase(data: Omit<KnowledgeBase, 'id' | 'created_at'>) {
-  try {
-    // Ensure summary is a string
-    const processedData = {
-      ...data,
-      summary: typeof data.summary === 'string' ? data.summary : 
-               (Array.isArray(data.summary) ? data.summary.join('\n') : '')
-    }
+export async function addToKnowledgeBase(item: {
+  category: string
+  headline: string
+  summary: string
+  original_url: string
+}) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('knowledge_base')
+    .insert([item])
+    .select()
+    .single()
 
-    const { data: result, error } = await supabase
-      .from('knowledge_base')
-      .insert([processedData])
-      .select()
-      .single()
-
-    if (error) throw error
-    return { success: true, data: result }
-  } catch (error) {
+  if (error) {
     console.error('Error adding to knowledge base:', error)
-    return { success: false, error }
+    return { success: false, error: error.message }
   }
+
+  return { success: true, data }
 }
 
 export async function getKnowledgeBase() {
-  try {
-    console.log('Fetching knowledge base data...')
-    const { data, error } = await supabase
-      .from('knowledge_base')
-      .select('*')
-      .order('created_at', { ascending: false })
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('knowledge_base')
+    .select('*')
+    .order('created_at', { ascending: false })
 
-    if (error) {
-      console.error('Supabase error:', error)
-      throw error
-    }
-
-    // Ensure summary is always a string
-    const processedData = data?.map(item => ({
-      ...item,
-      summary: typeof item.summary === 'string' ? item.summary : 
-               (Array.isArray(item.summary) ? item.summary.join('\n') : '')
-    }))
-
-    console.log('Successfully fetched knowledge base data:', processedData?.length, 'items')
-    return { success: true, data: processedData }
-  } catch (error) {
+  if (error) {
     console.error('Error fetching knowledge base:', error)
-    return { success: false, error }
+    return { success: false, error: error.message }
   }
+
+  return { success: true, data }
+}
+
+export async function deleteFromKnowledgeBase(id: number) {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('knowledge_base')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('Error deleting from knowledge base:', error)
+    return { success: false, error: error.message }
+  }
+
+  return { success: true }
 } 

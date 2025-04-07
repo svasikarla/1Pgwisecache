@@ -1,81 +1,92 @@
 "use client"
 
-import { useState } from "react"
-import { ExternalLink } from "lucide-react"
+import { motion } from "framer-motion"
+import { ExternalLink, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { getCategoryIcon } from "@/lib/category-icons"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { useState } from "react"
+import { DeleteConfirmation } from "./delete-confirmation"
 
-export interface UrlCardProps {
+interface UrlCardProps {
+  id: number
   title: string
   url: string
-  summary: string
   category: string
+  summary: string
+  formattedDate: string
+  onDelete: (id: number) => void
 }
 
-export default function UrlCard({ title, url, summary, category }: UrlCardProps) {
-  const [isHovered, setIsHovered] = useState(false)
-  const Icon = getCategoryIcon(category)
-
-  // Split summary into lines and filter out empty lines
-  const summaryLines = summary.split('\n').filter(line => line.trim().length > 0)
+export default function UrlCard({ id, title, url, category, summary, formattedDate, onDelete }: UrlCardProps) {
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
   return (
-    <Card
-      className={cn(
-        "h-full flex flex-col border transition-all duration-300",
-        isHovered ? "shadow-lg scale-[1.02] bg-card/80" : "shadow",
-      )}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <CardHeader>
-        <div className="flex justify-between items-start gap-2">
-          <CardTitle className="text-lg">{title}</CardTitle>
-          <Badge
-            variant="secondary"
-            className={cn("flex items-center gap-1 transition-all duration-300", isHovered ? "scale-110" : "")}
-          >
-            <Icon className="h-3 w-3" />
-            <span>{category}</span>
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-1">
-        <ul className="list-none pl-0 space-y-1 text-sm text-muted-foreground">
-          {summaryLines.map((line, index) => (
-            <li
-              key={index}
-              className={cn(
-                "transition-opacity duration-300 ease-in-out flex items-start gap-2",
-                isHovered ? "opacity-100" : `opacity-${Math.max(100 - index * 10, 70)}`,
-              )}
-              style={{
-                transitionDelay: isHovered ? `${index * 50}ms` : "0ms",
-              }}
+    <>
+      <motion.div
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        <Card className="overflow-hidden transition-all duration-300 hover:shadow-lg dark:bg-gray-800 dark:border-gray-700">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <Badge variant="outline" className="text-xs">
+                {category}
+              </Badge>
+              <span className="text-xs text-muted-foreground">{formattedDate}</span>
+            </div>
+            <CardTitle className="text-lg font-semibold line-clamp-2 dark:text-gray-100">
+              {title}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {summary.split('\n').map((line, index) => (
+                <motion.li
+                  key={index}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="flex items-start gap-2 text-sm dark:text-gray-300"
+                >
+                  <span className="text-primary mt-1">•</span>
+                  <span className="flex-1">{line.replace(/^[•\s]+/, '').trim()}</span>
+                </motion.li>
+              ))}
+            </ul>
+          </CardContent>
+          <CardFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 gap-2 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700"
+              onClick={() => window.open(url, '_blank')}
             >
-              <span className="text-primary">•</span>
-              <span>{line.trim().replace(/^[•\s]+/, '')}</span>
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-      <CardFooter>
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={cn(
-            "text-sm flex items-center gap-1 text-primary transition-all duration-300",
-            isHovered ? "underline translate-x-1" : "hover:underline",
-          )}
-        >
-          <ExternalLink className={cn("h-3 w-3 transition-transform duration-300", isHovered ? "translate-x-1" : "")} />
-          <span>View Original</span>
-        </a>
-      </CardFooter>
-    </Card>
+              <ExternalLink className="h-4 w-4" />
+              Visit Source
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive dark:text-red-400 dark:hover:text-red-300"
+              onClick={() => setIsDeleteDialogOpen(true)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </CardFooter>
+        </Card>
+      </motion.div>
+
+      <DeleteConfirmation
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={() => {
+          onDelete(id)
+          setIsDeleteDialogOpen(false)
+        }}
+        title={title}
+      />
+    </>
   )
 }
 

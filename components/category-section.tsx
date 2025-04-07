@@ -1,33 +1,38 @@
-import type { UrlCardProps } from "@/components/url-card"
-import UrlCard from "@/components/url-card"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 interface CategorySectionProps {
-  title: string
-  items: UrlCardProps[]
+  category: string
+  children: React.ReactNode
 }
 
-export default function CategorySection({ title, items }: CategorySectionProps) {
-  const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      Technology: "bg-blue-50 dark:bg-blue-950",
-      Science: "bg-green-50 dark:bg-green-950",
-      Business: "bg-amber-50 dark:bg-amber-950",
-      Health: "bg-red-50 dark:bg-red-950",
-      Ideas: "bg-purple-50 dark:bg-purple-950",
-    }
-
-    return colors[category] || "bg-gray-50 dark:bg-gray-900"
+const getCategoryColor = (category: string) => {
+  switch (category.toLowerCase()) {
+    case 'technology':
+      return 'bg-blue-100 dark:bg-blue-950/30 text-blue-800 dark:text-blue-200'
+    case 'science':
+      return 'bg-green-100 dark:bg-green-950/30 text-green-800 dark:text-green-200'
+    case 'business':
+      return 'bg-purple-100 dark:bg-purple-950/30 text-purple-800 dark:text-purple-200'
+    case 'health':
+      return 'bg-red-100 dark:bg-red-950/30 text-red-800 dark:text-red-200'
+    case 'entertainment':
+      return 'bg-yellow-100 dark:bg-yellow-950/30 text-yellow-800 dark:text-yellow-200'
+    case 'sports':
+      return 'bg-orange-100 dark:bg-orange-950/30 text-orange-800 dark:text-orange-200'
+    case 'politics':
+      return 'bg-gray-100 dark:bg-gray-950/30 text-gray-800 dark:text-gray-200'
+    default:
+      return 'bg-gray-100 dark:bg-gray-950/30 text-gray-800 dark:text-gray-200'
   }
+}
 
+export function CategorySection({ category, children }: CategorySectionProps) {
   return (
-    <section className={`p-6 rounded-lg ${getCategoryColor(title)}`}>
-      <h2 className="text-2xl font-semibold mb-4">{title}</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {items.map((item, index) => (
-          <UrlCard key={index} {...item} />
-        ))}
-      </div>
-    </section>
+    <div className={cn("p-6 rounded-lg transition-colors duration-300", getCategoryColor(category))}>
+      <h2 className="text-2xl font-semibold mb-4 dark:text-gray-100">{category}</h2>
+      {children}
+    </div>
   )
 }
 
