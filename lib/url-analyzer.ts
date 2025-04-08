@@ -1,5 +1,4 @@
 import OpenAI from 'openai'
-import { supabase } from '@/lib/supabase'
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -7,7 +6,7 @@ const openai = new OpenAI({
 })
 
 export interface AnalysisResult {
-  status: 'success' | 'already_processed' | 'error'
+  status: 'success' | 'error'
   category?: string
   headline?: string
   summary?: string
@@ -18,30 +17,6 @@ export interface AnalysisResult {
 
 export async function analyzeUrl(url: string): Promise<AnalysisResult> {
   try {
-    // Check if URL already exists in the database
-    const { data: existingData, error: checkError } = await supabase
-      .from('knowledge_base')
-      .select('*')
-      .eq('original_url', url)
-      .single()
-
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-      console.error('Error checking for existing URL:', checkError)
-      return {
-        status: 'error',
-        error: 'Failed to check for existing URL',
-        details: checkError.message
-      }
-    }
-
-    if (existingData) {
-      console.log('URL already processed:', url)
-      return {
-        status: 'already_processed',
-        ...existingData
-      }
-    }
-
     // Analyze the URL using OpenAI
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
@@ -71,25 +46,6 @@ export async function analyzeUrl(url: string): Promise<AnalysisResult> {
     const category = categoryMatch ? categoryMatch[1].trim() : 'Other'
     const headline = headlineMatch ? headlineMatch[1].trim() : 'No headline available'
     const summary = summaryMatch ? summaryMatch[1].trim() : 'No summary available'
-
-    // Store the analyzed data in Supabase
-    const { error: insertError } = await supabase
-      .from('knowledge_base')
-      .insert([{
-        category,
-        headline,
-        summary,
-        original_url: url
-      }])
-
-    if (insertError) {
-      console.error('Error storing data in Supabase:', insertError)
-      return {
-        status: 'error',
-        error: 'Failed to store data in database',
-        details: insertError.message
-      }
-    }
 
     return {
       status: 'success',

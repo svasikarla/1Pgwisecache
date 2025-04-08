@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import type { gmail_v1 } from 'googleapis'
 import OpenAI from 'openai'
 import { analyzeUrl, type AnalysisResult } from '../../../lib/url-analyzer'
+import { addToKnowledgeBase } from '@/lib/supabase/actions'
 
 interface ProcessedUrl {
   url: string
@@ -86,12 +87,134 @@ function getFirstFiveLinesOfBody(payload: gmail_v1.Schema$MessagePart): string[]
   }
 }
 
-export async function POST() {
+// Helper function to process email content
+async function process_email(email: gmail_v1.Schema$Message, user_id: string): Promise<ProcessedUrl | null> {
   try {
+    const subject = email.payload?.headers?.find(
+      (header: gmail_v1.Schema$MessagePartHeader) => header.name === 'Subject'
+    )?.value || ''
+
+    console.log('Email subject:', subject)
+
+    // First try to find URL in subject
+    let urlMatch = subject.match(/https?:\/\/[^\s<>"]+/)
+    let urlSource: 'subject' | 'body' = 'subject'
+    let urlLine = ''
+
+    // If no URL in subject, try first 5 lines of body
+    if (!urlMatch && email.payload) {
+      const firstFiveLines = getFirstFiveLinesOfBody(email.payload)
+      console.log('First 5 lines of body:', firstFiveLines)
+      
+      // Search through each line for a URL
+      for (const line of firstFiveLines) {
+        const lineUrlMatch = line.match(/https?:\/\/[^\s<>"]+/)
+        if (lineUrlMatch) {
+          urlMatch = lineUrlMatch
+          urlSource = 'body'
+          urlLine = line
+          break // Stop at first URL found
+        }
+      }
+    }
+    
+    if (urlMatch) {
+      const url = urlMatch[0]
+      console.log(`Found URL in ${urlSource}:`, url)
+      if (urlSource === 'body') {
+        console.log('URL found in line:', urlLine)
+      }
+
+      try {
+        // Use the shared analyzeUrl function
+        const result: AnalysisResult = await analyzeUrl(url)
+        console.log('Analysis result:', result)
+        
+        if (result.status === 'success') {
+          // Save to knowledge base
+          const saveResult = await addToKnowledgeBase({
+            category: result.category || '',
+            headline: result.headline || '',
+            summary: result.summary || '',
+            original_url: url
+          })
+
+          if (!saveResult.success) {
+            console.error('Failed to save to knowledge base:', saveResult.error)
+            return {
+              url,
+              status: 'error',
+              error: 'Failed to save to knowledge base',
+              details: saveResult.error,
+              source: urlSource,
+              line: urlLine
+            }
+          }
+        }
+        
+        return {
+          url,
+          status: result.status,
+          data: result.status === 'success' ? {
+            category: result.category || '',
+            headline: result.headline || '',
+            summary: result.summary || '',
+            original_url: result.original_url || url
+          } : undefined,
+          error: result.status === 'error' ? result.error : undefined,
+          details: result.status === 'error' ? result.details : undefined,
+          source: urlSource,
+          line: urlLine
+        }
+      } catch (error: any) {
+        console.error('Error processing URL:', error)
+        return {
+          url,
+          status: 'error',
+          error: 'Failed to process URL',
+          details: error.message,
+          source: urlSource,
+          line: urlLine
+        }
+      }
+    } else {
+      console.log('No URL found in subject or first 5 lines of body')
+      return null
+    }
+  } catch (error: any) {
+    console.error('Error processing email:', error)
+    return null
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    // Get the user_id from the request
+    let user_id: string | undefined;
+    try {
+      const body = await request.json();
+      user_id = body.user_id;
+    } catch (error) {
+      console.error('Error parsing request body:', error);
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid request body'
+      }, { status: 400 });
+    }
+
+    if (!user_id) {
+      return NextResponse.json({
+        success: false,
+        error: 'user_id is required'
+      }, { status: 400 });
+    }
+
     // Get emails from the last 7 days to ensure we don't miss any
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    const query = `in:inbox after:${Math.floor(sevenDaysAgo.getTime() / 1000)}`
+    
+    // Build query to filter for specific sender and receiver
+    const query = `in:inbox after:${Math.floor(sevenDaysAgo.getTime() / 1000)} from:${user_id} to:wiisecache@gmail.com`
     
     console.log('Fetching emails with query:', query)
     
@@ -166,77 +289,23 @@ export async function POST() {
           id: message.id,
         })
 
-        const subject = email.data.payload?.headers?.find(
-          (header: gmail_v1.Schema$MessagePartHeader) => header.name === 'Subject'
-        )?.value || ''
-
-        console.log('Email subject:', subject)
-
-        // First try to find URL in subject
-        let urlMatch = subject.match(/https?:\/\/[^\s<>"]+/)
-        let urlSource: 'subject' | 'body' = 'subject'
-        let urlLine = ''
-
-        // If no URL in subject, try first 5 lines of body
-        if (!urlMatch && email.data.payload) {
-          const firstFiveLines = getFirstFiveLinesOfBody(email.data.payload)
-          console.log('First 5 lines of body:', firstFiveLines)
-          
-          // Search through each line for a URL
-          for (const line of firstFiveLines) {
-            const lineUrlMatch = line.match(/https?:\/\/[^\s<>"]+/)
-            if (lineUrlMatch) {
-              urlMatch = lineUrlMatch
-              urlSource = 'body'
-              urlLine = line
-              break // Stop at first URL found
-            }
-          }
-        }
+        // Process the email using the existing process_email routine
+        const result = await process_email(email.data, user_id)
         
-        if (urlMatch) {
-          const url = urlMatch[0]
-          console.log(`Found URL in ${urlSource}:`, url)
-          if (urlSource === 'body') {
-            console.log('URL found in line:', urlLine)
-          }
+        if (result) {
+          processedUrls.push({
+            url: result.url,
+            status: result.status,
+            data: result.data,
+            error: result.error,
+            details: result.details,
+            source: result.source,
+            line: result.line
+          })
           emailsWithUrls++
-
-          try {
-            // Use the shared analyzeUrl function
-            const result: AnalysisResult = await analyzeUrl(url)
-            console.log('Analysis result:', result)
-            
-            processedUrls.push({
-              url,
-              status: result.status,
-              data: result.status === 'success' ? {
-                category: result.category || '',
-                headline: result.headline || '',
-                summary: result.summary || '',
-                original_url: result.original_url || url
-              } : undefined,
-              error: result.status === 'error' ? result.error : undefined,
-              details: result.status === 'error' ? result.details : undefined,
-              source: urlSource,
-              line: urlLine
-            })
-          } catch (error: any) {
-            console.error('Error processing URL:', error)
-            processedUrls.push({
-              url,
-              status: 'error',
-              error: 'Failed to process URL',
-              details: error.message,
-              source: urlSource,
-              line: urlLine
-            })
-          }
-        } else {
-          console.log('No URL found in subject or first 5 lines of body')
         }
       } catch (messageError: any) {
-        console.error('Error fetching message:', messageError.message)
+        console.error('Error processing message:', messageError.message)
         continue // Skip to next message if there's an error
       }
     }

@@ -1,17 +1,35 @@
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-import type { KnowledgeBase } from '../supabase'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+import type { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies'
+import type { Database } from '@/types/supabase'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+export async function createClient(cookieStore?: ReadonlyRequestCookies) {
+  const store = cookieStore || await cookies()
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables')
-}
-
-export function createClient() {
-  return createSupabaseClient(supabaseUrl, supabaseKey, {
-    auth: {
-      persistSession: false
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          const cookie = store.get(name)
+          return cookie?.value
+        },
+        set(name: string, value: string, options: any) {
+          try {
+            store.set({ name, value, ...options })
+          } catch (error) {
+            // Handle cookie errors
+          }
+        },
+        remove(name: string, options: any) {
+          try {
+            store.delete({ name, ...options })
+          } catch (error) {
+            // Handle cookie errors
+          }
+        },
+      },
     }
-  })
-} 
+  )
+}

@@ -1,16 +1,15 @@
-import type React from "react"
-import "@/app/globals.css"
+import type { Metadata } from "next"
 import { Inter } from "next/font/google"
+import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "sonner"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { Toaster } from "@/components/ui/toaster"
+import { AuthProvider } from "@/hooks/auth-provider"
 
 const inter = Inter({ subsets: ["latin"] })
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "WiseCache",
-  description: "Summarize and organize web content",
-    generator: 'v0.dev'
+  description: "Your AI-Powered Knowledge Companion",
 }
 
 export default function RootLayout({
@@ -21,12 +20,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <div className="fixed top-4 right-4 z-50">
-            <ThemeToggle />
-          </div>
-          {children}
-          <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AuthProvider>
+            {children}
+            <Toaster />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
