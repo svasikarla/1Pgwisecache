@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { Search, Plus, Mail } from "lucide-react"
+import { Search, Plus, Mail, Sparkles, BarChart3, Book, Users, Zap } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -17,6 +17,8 @@ import { useAuth } from "@/hooks/auth-provider"
 import { isGuest, getGuestLinkCount, GUEST_LINK_LIMIT, cleanupGuestUser } from "@/lib/guest-utils"
 import { useRouter } from "next/navigation"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { Card } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -32,6 +34,18 @@ export default function DashboardPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [linkCount, setLinkCount] = useState(0)
+
+  const stats = {
+    totalLinks: knowledgeBase.length,
+    totalCategories: categories.length,
+    topCategory: categories.length > 0 
+      ? categories.reduce((a, b) => 
+          knowledgeBase.filter(item => item.category === a).length >
+          knowledgeBase.filter(item => item.category === b).length ? a : b
+        )
+      : 'None',
+    recentlyAdded: knowledgeBase.slice(0, 5).length
+  }
 
   // Redirect to landing page if not authenticated
   useEffect(() => {
@@ -280,9 +294,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Button variant="outline" onClick={handleSignOut}>
-              Sign Out
-            </Button>
+            <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
           </div>
         </div>
 
@@ -299,38 +311,51 @@ export default function DashboardPage() {
           </div>
 
           {/* URL Input Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Input
-                type="url"
-                placeholder="Paste URL to summarize..."
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                required
-                className="flex-1"
-              />
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Input
+                  type="url"
+                  placeholder="Paste URL to summarize..."
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  required
+                />
+                {isLoading && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                  </div>
+                )}
+              </div>
               <div className="flex gap-2">
                 <Button 
-                  type="submit" 
                   onClick={handleAddUrl} 
-                  disabled={isSubmitting} 
-                  size="lg"
+                  disabled={isSubmitting}
                   className="bg-primary hover:bg-primary/90 text-white flex-1"
                 >
-                  {isSubmitting ? "Processing..." : <><Plus className="h-4 w-4 mr-2" /> Add URL</>}
+                  {isSubmitting ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Processing...
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Add URL
+                    </div>
+                  )}
                 </Button>
                 <Button 
                   variant="outline" 
                   onClick={handleProcessEmail} 
                   disabled={isProcessingEmail}
-                  size="lg"
-                  className="flex items-center gap-2 flex-1"
+                  className="flex items-center gap-2"
                 >
                   {isProcessingEmail ? (
-                    <>
+                    <div className="flex items-center gap-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
                       Processing...
-                    </>
+                    </div>
                   ) : (
                     <>
                       <Mail className="h-4 w-4" />
@@ -339,6 +364,18 @@ export default function DashboardPage() {
                   )}
                 </Button>
               </div>
+            </div>
+
+            {/* Search Box */}
+            <div className="mt-4 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search your knowledge base..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
             </div>
           </div>
 
@@ -359,7 +396,7 @@ export default function DashboardPage() {
                       <Button
                         variant="ghost"
                         className={`w-full justify-between px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
-                          selectedCategory === category ? 'ring-2 ring-primary scale-105' : ''
+                          selectedCategory === category ? 'ring-2 ring-primary' : ''
                         } ${getCategoryColor(category)}`}
                         onClick={() => setSelectedCategory(category)}
                       >
@@ -396,12 +433,12 @@ export default function DashboardPage() {
                         ({getFilteredItems(selectedCategory).length} items)
                       </span>
                     </h2>
-                    <div className="grid gap-4">
+                    <div className="flex flex-col space-y-4">
                       {getFilteredItems(selectedCategory).map((item, index) => (
                         <motion.div
                           key={item.id}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.1 }}
                         >
                           <UrlCard
@@ -433,5 +470,5 @@ export default function DashboardPage() {
         </div>
       </div>
     </main>
-  )
-} 
+  );
+}

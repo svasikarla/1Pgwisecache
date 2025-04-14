@@ -36,7 +36,8 @@ const oauth2Client = new OAuth2Client(
 
 // Set credentials
 oauth2Client.setCredentials({
-  refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+  refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+  access_token: process.env.GMAIL_ACCESS_TOKEN
 })
 
 // Initialize Gmail API
@@ -328,4 +329,4 @@ export async function POST(request: Request) {
       { status: 500 }
     )
   }
-} 
+}
