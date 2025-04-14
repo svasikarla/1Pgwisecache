@@ -16,8 +16,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "@/hooks/auth-provider"
 import { isGuest, getGuestLinkCount, GUEST_LINK_LIMIT, cleanupGuestUser } from "@/lib/guest-utils"
 import { useRouter } from "next/navigation"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { Card } from "@/components/ui/card"
+import { Navbar } from "@/components/ui/navbar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function DashboardPage() {
@@ -275,39 +274,43 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-6">
-        {/* Header Section */}
-        <div className="flex justify-between items-start mb-6">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-bold">WiseCache</h1>
-            {user && (
-              <div className="text-sm text-muted-foreground">
-                <p className="font-semibold text-gray-800 dark:text-gray-200">Welcome, {user.email}</p>
-                <p className="flex gap-4 text-gray-600 dark:text-gray-400">
-                  <span>Account created: {new Date(user.created_at).toLocaleDateString()}</span>
-                  <span>•</span>
-                  <span>Last login: {new Date(user.last_sign_in_at || user.created_at).toLocaleDateString()}</span>
-                </p>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
+    <div className="min-h-screen bg-background">
+      <Navbar userEmail={user?.email} onSignOut={handleSignOut} />
+      
+      {user && (
+        <div className="w-full border-b bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
+          <div className="container mx-auto px-4 py-2">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Created: {new Date(user.created_at).toLocaleDateString()}</span>
+              <span>Last login: {new Date(user.last_sign_in_at || user.created_at).toLocaleDateString()}</span>
+            </div>
           </div>
         </div>
-
-        {/* Main Content Section */}
+      )}
+      
+      <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">
-          {/* Title and Guest Info */}
-          <div className="text-center">
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">Your Knowledge Base</h2>
-            {user && isGuest(user) && (
-              <p className="text-sm text-muted-foreground">
-                Guest Mode: {linkCount} of {GUEST_LINK_LIMIT} links used
-              </p>
-            )}
+          {/* Header Section with Title and Search */}
+          <div className="flex justify-between items-center gap-4">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Your Knowledge Base</h3>
+              {user && isGuest(user) && (
+                <p className="text-sm text-muted-foreground">
+                  Guest Mode: {linkCount} of {GUEST_LINK_LIMIT} links used
+                </p>
+              )}
+            </div>
+            {/* Search Box */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search your knowledge base..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
           </div>
 
           {/* URL Input Section */}
@@ -365,18 +368,6 @@ export default function DashboardPage() {
                 </Button>
               </div>
             </div>
-
-            {/* Search Box */}
-            <div className="mt-4 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search your knowledge base..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
           </div>
 
           {/* Categories and Content Section */}
@@ -433,13 +424,13 @@ export default function DashboardPage() {
                         ({getFilteredItems(selectedCategory).length} items)
                       </span>
                     </h2>
-                    <div className="flex flex-col space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                       {getFilteredItems(selectedCategory).map((item, index) => (
                         <motion.div
                           key={item.id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.1 }}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: index * 0.05 }}
                         >
                           <UrlCard
                             id={item.id}
@@ -468,7 +459,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </div>
-    </main>
-  );
+      </main>
+    </div>
+  )
 }

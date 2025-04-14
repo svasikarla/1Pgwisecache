@@ -59,22 +59,14 @@ export default function AnimatedUrlCard({ title, url, summary, category }: UrlCa
           </div>
         </CardHeader>
         <CardContent className="flex-1">
-          <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+          <ul className="list-disc pl-4 space-y-1 text-xs text-muted-foreground leading-relaxed">
             {summary.map((point, index) => (
               <motion.li
                 key={index}
-                variants={{
-                  hidden: { opacity: 0, x: -10 },
-                  visible: {
-                    opacity: 1,
-                    x: 0,
-                    transition: {
-                      delay: index * 0.1,
-                      duration: 0.3,
-                    },
-                  },
-                }}
-                className={cn("transition-all duration-300", isHovered ? "text-foreground" : "")}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1, duration: 0.3 }}
+                className={cn("transition-colors duration-300", isHovered ? "text-foreground" : "")}
               >
                 {point}
               </motion.li>
@@ -88,7 +80,7 @@ export default function AnimatedUrlCard({ title, url, summary, category }: UrlCa
             rel="noopener noreferrer"
             className={cn(
               "text-sm flex items-center gap-1 text-primary transition-all duration-300",
-              isHovered ? "underline translate-x-1" : "hover:underline",
+              isHovered ? "underline translate-x-1" : "hover:underline"
             )}
           >
             <ExternalLink

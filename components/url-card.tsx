@@ -1,11 +1,9 @@
 "use client"
 
-import { useState } from "react"
-import { ExternalLink, Trash2, ChevronDown, ChevronUp } from "lucide-react"
+import { ExternalLink, Trash2 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { motion, AnimatePresence } from "framer-motion"
 import { getCategoryColor, getCategoryIcon } from "@/lib/category-utils"
 
 interface UrlCardProps {
@@ -27,69 +25,49 @@ export default function UrlCard({
   formattedDate,
   onDelete,
 }: UrlCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
-
   return (
-    <Card className="overflow-hidden border bg-card">
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 space-y-1">
-            <div className="flex items-center gap-2">
-              <Badge 
-                variant="secondary" 
-                className={`text-sm px-2 py-0.5 ${getCategoryColor(category)}`}
-              >
-                <span className="mr-1">{getCategoryIcon(category)}</span>
-                {category}
-              </Badge>
-              <span className="text-sm text-muted-foreground">{formattedDate}</span>
-            </div>
-            <h3 className="font-medium leading-tight">{title}</h3>
+    <Card className="overflow-hidden border bg-card hover:shadow-md transition-shadow duration-300 h-full flex flex-col">
+      <div className="p-3 flex flex-col flex-1">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <Badge 
+              variant="secondary" 
+              className={`text-xs px-2 py-0.5 ${getCategoryColor(category)}`}
+            >
+              <span className="mr-1">{getCategoryIcon(category)}</span>
+              {category}
+            </Badge>
+            <span className="text-xs text-muted-foreground">{formattedDate}</span>
           </div>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9"
-              onClick={() => window.open(url, '_blank')}
-            >
-              <ExternalLink className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 text-destructive hover:text-destructive"
-              onClick={() => onDelete(id)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9"
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              {isExpanded ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </Button>
+          
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-sm font-medium leading-tight flex-1">{title}</h3>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => window.open(url, '_blank')}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                onClick={() => onDelete(id)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
         </div>
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <p className="mt-3 text-sm text-muted-foreground">{summary}</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+
+        <ul className="mt-2 text-xs text-muted-foreground leading-relaxed flex-1 list-disc pl-4 space-y-1">
+          {summary.split('\n').map((point, index) => (
+            <li key={index}>{point.trim()}</li>
+          ))}
+        </ul>
       </div>
     </Card>
   )
